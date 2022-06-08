@@ -8,14 +8,26 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
+import ru.geekbrains.cloud_storage_server.authorization.AuthService;
 import ru.geekbrains.cloud_storage_server.config.ServerConfig;
+import ru.geekbrains.cloud_storage_server.messages.MessageHandler;
+
 
 public class NettyServer {
     private final ServerConfig config = ServerConfig.getInstance();
     private ChannelFuture channelFuture;
+    private AuthService authService;
+    private MessageHandler messageHandler;
 
+    public NettyServer(AuthService authService) {
+        this.authService = authService;
+        this.messageHandler = new MessageHandler(authService);
+        this.authService.start();
+    }
 
     public void start() throws Exception {
+
+
         final EventLoopGroup bossGroup = new NioEventLoopGroup();
         final EventLoopGroup workerGroup = new NioEventLoopGroup();
 
@@ -31,7 +43,7 @@ public class NettyServer {
                     socketChannel.pipeline().addLast(
                             new ObjectDecoder(ClassResolvers.cacheDisabled(null)),
                             new ObjectEncoder(),
-                            new NettyServerHandler()
+                            new NettyServerHandler(authService)
                     );
                 }
             });
