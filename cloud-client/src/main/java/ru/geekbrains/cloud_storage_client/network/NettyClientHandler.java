@@ -39,7 +39,7 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
 
     public String readFromConsole() {
         Scanner scanner = new Scanner(System.in);
-        String result = scanner.nextLine();
+        String  result = scanner.nextLine();
         return result;
     }
 }
