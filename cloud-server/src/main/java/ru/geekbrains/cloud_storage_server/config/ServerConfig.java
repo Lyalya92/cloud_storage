@@ -7,6 +7,7 @@ import java.util.Properties;
 public class ServerConfig {
     private final int PORT;
     private final String REGEX;
+    private final int MAXIMUM_OBJECT_SIZE;
 
     private ServerConfig() {
         try (InputStream in = getClass().getResourceAsStream("/server.properties")) {
@@ -14,6 +15,7 @@ public class ServerConfig {
             properties.load(in);
             PORT = Integer.parseInt(properties.getProperty("port"));
             REGEX = properties.getProperty("regex");
+            MAXIMUM_OBJECT_SIZE = Integer.parseInt(properties.getProperty("max_obj_size"));
         } catch (IOException e) {
             throw new RuntimeException("Error: property file does not exist or unreadable!", e);
         }
@@ -33,5 +35,9 @@ public class ServerConfig {
 
     public String getREGEX() {
         return REGEX;
+    }
+
+    public int getMaxObjSize() {
+        return MAXIMUM_OBJECT_SIZE;
     }
 }

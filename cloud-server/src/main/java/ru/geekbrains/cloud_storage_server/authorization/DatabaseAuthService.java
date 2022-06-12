@@ -3,6 +3,7 @@ package ru.geekbrains.cloud_storage_server.authorization;
 import ru.geekbrains.cloud_storage_server.database.DatabaseService;
 import ru.geekbrains.cloud_storage_server.entity.User;
 
+import java.io.File;
 import java.util.ArrayList;
 
 public class DatabaseAuthService implements AuthService {
@@ -21,16 +22,19 @@ public class DatabaseAuthService implements AuthService {
 
     @Override
     public User authorizeUserByLoginAndPassword(String login, String password) {
-        String nickname = databaseService.getNickByLoginAndPassword(login, password);
-        if (nickname!=null) {
-            User user = new User();
-            user.setLogin(login);
-            user.setPassword(password);
-            user.setNickname(nickname);
-            return user;
-        } else {
-            return null; // добавить здесь Exception
-        }
+        return databaseService.getUserByLoginAndPassword(login, password);
+//        String nickname = databaseService.getNickByLoginAndPassword(login, password);
+//        String folderPath = databaseService.getFolderPathByLogin(login);
+//        if (nickname!=null) {
+//            User user = new User();
+//            user.setLogin(login);
+//            user.setPassword(password);
+//            user.setNickname(nickname);
+//            user.setFolderPath(folderPath);
+//            return user;
+//        } else {
+//            return null; // добавить здесь Exception
+//        }
 
     }
 
@@ -54,8 +58,4 @@ public class DatabaseAuthService implements AuthService {
         return null;
     }
 
-    @Override
-    public ArrayList<String> showAllUsers() {
-        return databaseService.showAllUsers();
-    }
 }

@@ -14,5 +14,4 @@ public interface AuthService {
     void deleteUser(String login, String password);
     String changeNickname(String login, String newNickname);
 
-    ArrayList<String> showAllUsers();
 }

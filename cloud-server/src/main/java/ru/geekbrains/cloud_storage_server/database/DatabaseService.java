@@ -2,7 +2,6 @@ package ru.geekbrains.cloud_storage_server.database;
 
 import ru.geekbrains.cloud_storage_server.entity.User;
 
-import java.io.File;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,7 +17,8 @@ public class DatabaseService {
                     "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                     "login TEXT NOT NULL UNIQUE," +
                     "password TEXT NOT NULL," +
-                    "nickname TEXT NOT NULL UNIQUE);";
+                    "nickname TEXT NOT NULL UNIQUE," +
+                    "folder TEXT NOT NULL UNIQUE)";
 
     public static final String CREATE_TABLE_FILES =
             "CREATE TABLE IF NOT EXISTS files (" +
@@ -27,24 +27,23 @@ public class DatabaseService {
                     "filename TEXT NOT NULL," +
                     "path TEXT NOT NULL);";
 
-    public static final String INIT_DB =
-            "INSERT INTO cloud_users (login, password, nickname) VALUES" +
-                    "('login1', 'qwert', 'nick1')," +
-                    "('login2', 'qwert', 'nick2')," +
-                    "('login3', 'qwert', 'nick3');";
-
     public static final String SHOW_ALL_USERS =
             "SELECT * FROM cloud_users";
-
-    public static final String SHOW_ALL_FILES =
-            "SELECT * FROM files";
 
     public static final String GET_NICKNAME =
             "SELECT nickname FROM cloud_users " +
                     "WHERE login = ? AND password = ?";
 
+    public static final String GET_USER =
+            "SELECT nickname, folder FROM cloud_users " +
+                    "WHERE login = ? AND password = ?";
+
+    public static final String GET_USER_FOLDER =
+            "SELECT folder FROM cloud_users " +
+                    "WHERE login = ?";
+
     public static final String ADD_NEW_USER =
-            "INSERT INTO cloud_users (login, password, nickname) VALUES (?,?,?)";
+            "INSERT INTO cloud_users (login, password, nickname, folder) VALUES (?,?,?,?)";
 
     public static final String DELETE_ALL_USERS =
             "DELETE FROM users";
@@ -110,9 +109,29 @@ public class DatabaseService {
         return null;
     }
 
+    public String getFolderPathByLogin(String login) {
+        try (var ps = connection.prepareStatement(GET_USER_FOLDER)) {
+            ps.setString(1, login);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                var result = rs.getString("folder");
+                rs.close();
+                return result;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public void addNewFile () {
+
+    }
+
     public User createNewUser(String login, String password) {
         boolean flag = true;
 
+        String folderPath = "cloud-server/storage/" + login + "/";
         String nickname = null;
         while (flag) {
             nickname = generateRandomNick();
@@ -120,6 +139,7 @@ public class DatabaseService {
                 ps.setString(1, login);
                 ps.setString(2, password);
                 ps.setString(3, nickname);
+                ps.setString(4, folderPath);
                 int rows = ps.executeUpdate();
                 if (rows == 1) {
                     flag = false;
@@ -133,7 +153,7 @@ public class DatabaseService {
         user.setLogin(login);
         user.setPassword(password);
         user.setNickname(nickname);
-        user.setFolderPath(new File("cloud-server/storage/" + login + "/"));
+        user.setFolderPath(folderPath);
         return user;
     }
 
@@ -171,7 +191,8 @@ public class DatabaseService {
                 String login = rs.getString(2);
                 String password = rs.getString(3);
                 String nickname = rs.getString(4);
-                list.add(id + " " + login + " " + password + " " + nickname);
+                String folder = rs.getString(5);
+                list.add(id + " " + login + " " + password + " " + nickname + " " + folder);
             }
 
         } catch (SQLException sqlEx) {
@@ -185,5 +206,25 @@ public class DatabaseService {
             }
         }
         return list;
+    }
+
+    public User getUserByLoginAndPassword(String login, String password) {
+        User user = new User();
+        user.setLogin(login);
+        user.setPassword(password);
+        try (var ps = connection.prepareStatement(GET_USER)) {
+            ps.setString(1, login);
+            ps.setString(2, password);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                user.setNickname(rs.getString("nickname"));
+                user.setFolderPath(rs.getString("folder"));
+                rs.close();
+                return user;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
