@@ -10,6 +10,7 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 import ru.geekbrains.cloud_storage_server.authorization.AuthService;
 import ru.geekbrains.cloud_storage_server.config.ServerConfig;
+import ru.geekbrains.cloud_storage_server.database.DatabaseService;
 import ru.geekbrains.cloud_storage_server.messages.MessageHandler;
 
 
@@ -18,10 +19,12 @@ public class NettyServer {
     private ChannelFuture channelFuture;
     private AuthService authService;
     private MessageHandler messageHandler;
+    private DatabaseService databaseService;
 
     public NettyServer(AuthService authService) {
         this.authService = authService;
         this.messageHandler = new MessageHandler(authService);
+        this.databaseService = DatabaseService.getInstance();
         this.authService.start();
     }
 
@@ -41,9 +44,10 @@ public class NettyServer {
                 @Override
                 protected void initChannel(SocketChannel socketChannel) throws Exception {
                     socketChannel.pipeline().addLast(
-                            new ObjectDecoder(ClassResolvers.cacheDisabled(null)),
+                            new ObjectDecoder(config.getMaxObjSize(), ClassResolvers.cacheDisabled(null)),
                             new ObjectEncoder(),
-                            new NettyServerHandler(authService)
+                            new ServiceCommandHandler(),
+                            new FileTransporterHandler()
                     );
                 }
             });
