@@ -32,6 +32,8 @@ public class NettyClient {
                     socketChannel.pipeline().addLast(
                             new ObjectDecoder(ClassResolvers.cacheDisabled(null)),
                             new ObjectEncoder(),
+                            new ServerResponseHandler(),
+                            new ClientFileHandler(),
                             new NettyClientHandler()
                     );
                 }

@@ -4,16 +4,14 @@ package ru.geekbrains.cloud_storage_server.messages;
 import io.netty.channel.ChannelHandlerContext;
 import ru.geekbrains.cloud_storage_common.model.ServerResponse;
 import ru.geekbrains.cloud_storage_common.model.ServiceCommand;
+import ru.geekbrains.cloud_storage_common.model.TransportedFile;
 import ru.geekbrains.cloud_storage_server.authorization.AuthService;
 import ru.geekbrains.cloud_storage_server.database.DatabaseService;
 import ru.geekbrains.cloud_storage_server.entity.ListOfUsers;
 import ru.geekbrains.cloud_storage_server.entity.User;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 
 public class MessageHandler {
@@ -26,8 +24,9 @@ public class MessageHandler {
     }
 
     // Обработка служебных команд
-    public static void handleServiceCommand(ChannelHandlerContext ctx, ServiceCommand msg) throws Exception{
-            switch (msg.getCommand()) {
+    public static void handleServiceCommand(ChannelHandlerContext ctx, ServiceCommand msg) throws Exception {
+        User user;
+        switch (msg.getCommand()) {
                 // Подключение клиента к серверу
                 case "-connect":
                     ctx.writeAndFlush(new ServerResponse(
@@ -43,7 +42,7 @@ public class MessageHandler {
 
                 // Авторизация
                 case "-auth":
-                    var user = authorize(msg);
+                    user = authorize(msg);
                     if (ListOfUsers.IsUserConnected(user)) {
                         ctx.writeAndFlush(new ServerResponse(Arrays.asList("Вы уже вошли в систему!")));
                     } else {
@@ -75,9 +74,9 @@ public class MessageHandler {
                     break;
 
                 case "-memory":
-                    var currentUser = ListOfUsers.getUser(ctx);
-                    if (currentUser != null) {
-                        long directorySize = ListOfUsers.getUsedMemory(currentUser);
+                    user = ListOfUsers.getUser(ctx);
+                    if (user != null) {
+                        long directorySize = ListOfUsers.getUsedMemory(user);
                         String response;
                         if (directorySize < 1024*10) {
                             response = String.format("Использовано: %.2f Кб из 500 Мб", (double) directorySize/1024);
@@ -98,21 +97,71 @@ public class MessageHandler {
                     break;
 
                 case "-newnick":
-                    if (ListOfUsers.getUser(ctx)!=null) {
-                        // Смена рандомного ника на свой собственный
-                        // Не забыть проверить ник на уникальность
+                    user = ListOfUsers.getUser(ctx);
+                    if (user != null) {
+                        if(databaseService.isNicknameBusy(msg.getData()[1])) {
+                            ctx.writeAndFlush(new ServerResponse(Arrays.asList("Этот ник уже занят!")));
+                        } else {
+                            if (databaseService.changeNickname(user, msg.getData()[1], msg.getData()[2])) {
+                                ctx.writeAndFlush(new ServerResponse(Arrays.asList("Пароль успешно изменен")));
+                            } else {
+                                ctx.writeAndFlush(new ServerResponse(Arrays.asList("Ошибка при смене пароля")));
+                            }
+                        }
                     } else {
                         ctx.writeAndFlush(new ServerResponse(Arrays.asList("Необходимо сперва авторизоваться!")));
                     }
                     break;
 
                 case "-newpass":
-                    if (ListOfUsers.getUser(ctx)!=null) {
-                    // Сменить пароль
+                    user = ListOfUsers.getUser(ctx);
+                    if (user != null) {
+                        if (databaseService.changePassword(user, msg.getData()[1], msg.getData()[2])) {
+                            ctx.writeAndFlush(new ServerResponse(Arrays.asList("Пароль успешно изменен")));
+                        } else {
+                            ctx.writeAndFlush(new ServerResponse(Arrays.asList("Ошибка при смене пароля")));
+                        }
                     } else {
                         ctx.writeAndFlush(new ServerResponse(Arrays.asList("Необходимо сперва авторизоваться!")));
                     }
                     break;
+
+            case "-download":
+                File file = new File(ListOfUsers.getUser(ctx).getFolderPath() + msg.getData()[1]);
+                if (file.exists()) {
+                    sendFileToClient(ctx, file);
+                } else {
+                    ctx.writeAndFlush(new ServerResponse(Arrays.asList("Файл не найден")));
+                }
+                break;
+
+            case "-send":
+                File file1 = new File(ListOfUsers.getUser(ctx).getFolderPath() + msg.getData()[1]);
+                File dest_file = new File(databaseService.getFolderPathByNickname(msg.getData()[2]) + msg.getData()[1]);
+                Files.copy(file1.toPath(), dest_file.toPath());
+                ctx.writeAndFlush(new ServerResponse(Arrays.asList("Файл отправлен пользовтелю " + msg.getData()[2])));
+                break;
+
+            // Удалить файл на сервере
+            case "-delete":
+                File f = new File(ListOfUsers.getUser(ctx).getFolderPath() + msg.getData()[1]);
+                if (f.delete()) {
+                    ctx.writeAndFlush(new ServerResponse(Arrays.asList("Файл " + f.getName() + " удален")));
+                } else {
+                    ctx.writeAndFlush(new ServerResponse(Arrays.asList("Файл " + f.getName() + " не обнаружен")));
+                }
+                break;
+
+            // Переименовать файл на сервере
+            case "-rename":
+                File oldFile = new File(ListOfUsers.getUser(ctx).getFolderPath() + msg.getData()[1]);
+                File newFile = new File(ListOfUsers.getUser(ctx).getFolderPath() + msg.getData()[2]);
+                if(oldFile.renameTo(newFile)) {
+                    ctx.writeAndFlush(new ServerResponse(Arrays.asList("Файл успешно переименован")));
+                } else {
+                    ctx.writeAndFlush(new ServerResponse(Arrays.asList("Файл не был переименован")));
+                }
+                break;
 
                 // Завершение работы
                 case "-exit":
@@ -124,6 +173,21 @@ public class MessageHandler {
                     ctx.writeAndFlush(new ServerResponse(Arrays.asList("Неправильная команда. Вызов справки: -help")));
                     break;
             }
+    }
+
+    // Отправка содержимого файла клиенту
+    private static void sendFileToClient(ChannelHandlerContext ctx, File file) {
+        String filename = file.getName();
+        int fileSize = (int) file.length();
+        try(FileInputStream fis = new FileInputStream(file)) {
+            byte [] buffer = new byte[fileSize];
+            fis.read(buffer);
+            ctx.writeAndFlush(new TransportedFile(filename, buffer, fileSize));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     // Регистрация нового пользователя

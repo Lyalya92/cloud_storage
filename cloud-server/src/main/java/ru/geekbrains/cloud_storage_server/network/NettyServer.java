@@ -47,7 +47,7 @@ public class NettyServer {
                             new ObjectDecoder(config.getMaxObjSize(), ClassResolvers.cacheDisabled(null)),
                             new ObjectEncoder(),
                             new ServiceCommandHandler(),
-                            new FileTransporterHandler()
+                            new ServerFileHandler()
                     );
                 }
             });

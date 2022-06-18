@@ -1,9 +1,14 @@
 Служебные команды
 -help       Справка
--auth       Авторизация (Пример использования: -auth login password)
--list       Просмотр содержания БД (временно), позже будет показывать список файлов пользователя
--registr    Регистрация нового пользователя
--newnick    Сменить ник
--newpass    Сменить пароль
+-auth       Авторизация (Пример: -auth login password)
+-registr    Регистрация нового пользователя (Пример: -registr login password)
+-newnick    Сменить ник (Пример: -newnick newNickname password)
+-newpass    Сменить пароль (Пример: -newpass oldPassword newPassword)
+-list       Просмотр списка загруженных файлов пользователя
 -memory     Информация об использованной памяти
+-upload     Загрузить файл на сервер (Пример: -upload C:\Users\..\..\file.pdf)
+-download   Скачать файл с сервера (Пример: -download file.pdf)
+-send       Переслать файл другому пользователю (Пример: -send file.pdf user_nickname)
+-delete     Удаление файла (Пример: -delete 1.txt)
+-rename     Переименовать файл (Пример: -rename oldName.txt newName.txt)
 -exit       Завершение работы

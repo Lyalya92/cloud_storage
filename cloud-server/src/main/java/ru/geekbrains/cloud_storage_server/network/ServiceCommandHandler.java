@@ -2,7 +2,6 @@ package ru.geekbrains.cloud_storage_server.network;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import ru.geekbrains.cloud_storage_common.model.ServerResponse;
 import ru.geekbrains.cloud_storage_common.model.ServiceCommand;
 import ru.geekbrains.cloud_storage_server.messages.MessageHandler;
 

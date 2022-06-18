@@ -40,10 +40,19 @@ public class DatabaseService {
 
     public static final String GET_USER_FOLDER =
             "SELECT folder FROM cloud_users " +
-                    "WHERE login = ?";
+                    "WHERE nickname = ?";
 
     public static final String ADD_NEW_USER =
             "INSERT INTO cloud_users (login, password, nickname, folder) VALUES (?,?,?,?)";
+
+    public static final String SET_PASSWORD =
+            "UPDATE cloud_users SET password = ? WHERE login = ?";
+
+    public static final String SET_NICK =
+            "UPDATE cloud_users SET nickname = ? WHERE login = ?";
+
+    public static final String CHECK_NICK =
+            "SELECT COUNT(*) FROM cloud_users WHERE nickname = ?";
 
     public static final String DELETE_ALL_USERS =
             "DELETE FROM users";
@@ -109,9 +118,9 @@ public class DatabaseService {
         return null;
     }
 
-    public String getFolderPathByLogin(String login) {
+    public String getFolderPathByNickname(String nickname) {
         try (var ps = connection.prepareStatement(GET_USER_FOLDER)) {
-            ps.setString(1, login);
+            ps.setString(1, nickname);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 var result = rs.getString("folder");
@@ -124,9 +133,6 @@ public class DatabaseService {
         return null;
     }
 
-    public void addNewFile () {
-
-    }
 
     public User createNewUser(String login, String password) {
         boolean flag = true;
@@ -226,5 +232,49 @@ public class DatabaseService {
             e.printStackTrace();
         }
         return null;
+    }
+
+    public boolean changePassword(User user, String oldPassword, String newPassword) {
+        if(user.getPassword().equals(oldPassword)) {
+            try (var ps = connection.prepareStatement(SET_PASSWORD)) {
+                ps.setString(1, newPassword);
+                ps.setString(2, user.getLogin());
+                int rows = ps.executeUpdate();
+                if(rows == 1) {
+                    return true;
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+    return false;
+    }
+
+    public boolean changeNickname(User user, String newNick, String password) {
+        if(user.getPassword().equals(password)) {
+            try (var ps = connection.prepareStatement(SET_NICK)) {
+                ps.setString(1, newNick);
+                ps.setString(2, user.getLogin());
+                int rows = ps.executeUpdate();
+                if (rows == 1) {
+                    return true;
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        return false;
+    }
+    public boolean isNicknameBusy (String nickname) {
+        try (var ps = connection.prepareStatement(CHECK_NICK)) {
+            ps.setString(1, nickname);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return true;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 }
